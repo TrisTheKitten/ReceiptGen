@@ -1,5 +1,7 @@
 # Receipt Generator
 
+**Try here : https://gemini-receipt-gen.vercel.app/**
+
 A React-based receipt generator with AI-powered data generation. Supports 7-Eleven receipts and Lazada order receipts.
 
 ## Features
@@ -9,7 +11,7 @@ A React-based receipt generator with AI-powered data generation. Supports 7-Elev
 - **Batch Generation**: Generate up to 20 receipts at once
 - **Export Options**: PNG, PDF, or ZIP archive
 
-## Setup
+## For Local Host : Setup
 
 ```bash
 npm install
