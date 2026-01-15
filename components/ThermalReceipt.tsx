@@ -21,7 +21,6 @@ const FakeBarcode = ({ barWidth = 2, gapWidth = 2, height = 32 }: { barWidth?: n
 
 export const ThermalReceipt = ({ data }: { data: ReceiptData }) => {
     const {
-        scannedLook,
         sellerAddress,
         sellerTaxId,
         branchCode,
@@ -68,7 +67,7 @@ export const ThermalReceipt = ({ data }: { data: ReceiptData }) => {
     );
 
     return (
-        <div className={`bg-white text-black relative overflow-hidden shrink-0 ${scannedLook ? 'scanned-effect' : ''} w-[380px] min-h-[600px] p-4 pb-12 font-thai text-black select-none`} style={{ fontFamily: 'Sarabun, sans-serif' }}>
+        <div className="bg-white text-black relative overflow-hidden shrink-0 w-[380px] min-h-[600px] p-4 pb-12 font-thai text-black select-none" style={{ fontFamily: 'Sarabun, sans-serif' }}>
             <div className="text-center text-[13px] leading-tight tracking-tight">
                 <div className="font-bold mb-0.5">CP ALL, 7-Eleven {sellerAddress.split(' ')[0]} ({branchCode})</div>
                 <div className="mb-0.5">TAX#{sellerTaxId} (VAT Included)</div>

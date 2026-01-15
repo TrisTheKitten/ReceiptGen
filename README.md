@@ -9,7 +9,7 @@ A React-based receipt generator with AI-powered data generation. Supports 7-Elev
 - **AI Generation**: Uses Google Gemini Flash 3 Model to generate realistic receipt data. (You will need to use your own API key.)
 - **Templates**: 7-Eleven receipt and Lazada receipt styles
 - **Batch Generation**: Generate up to 20 receipts at once
-- **Export Options**: PNG, PDF, or ZIP archive
+- **Export Options**: PNG, PDF, or ZIP archive 
 
 ## For Local Host : Setup
 

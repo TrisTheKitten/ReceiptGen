@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { ReceiptData } from '../types';
-import { Trash2, RefreshCw, ChevronDown, ChevronRight, Edit, Archive, Download, FileText, Plus, Eye, EyeOff, Key } from 'lucide-react';
+import { ReceiptData, ScannerEffectOptions, DEFAULT_SCANNER_EFFECTS, randomizeScannerEffects, BackgroundStyle } from '../types';
+import { Trash2, RefreshCw, ChevronDown, ChevronRight, Edit, Archive, Download, FileText, Plus, Eye, EyeOff, Key, Shuffle, SlidersHorizontal, Image } from 'lucide-react';
 
 interface Props {
   data: ReceiptData;
@@ -92,6 +92,45 @@ const NumberInput = ({
 
 const ChevronUp = ({ size }: { size: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+);
+
+const ScannerSlider = ({ 
+    label, 
+    value, 
+    min, 
+    max, 
+    step, 
+    unit = "",
+    onChange 
+}: { 
+    label: string; 
+    value: number; 
+    min: number; 
+    max: number; 
+    step: number;
+    unit?: string;
+    onChange: (value: number) => void;
+}) => (
+    <div className="space-y-1.5">
+        <div className="flex justify-between items-center">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+            <span className="text-[10px] font-mono text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                {value.toFixed(step < 1 ? 1 : 0)}{unit}
+            </span>
+        </div>
+        <input 
+            type="range" 
+            min={min} 
+            max={max} 
+            step={step}
+            value={value}
+            onChange={(e) => onChange(parseFloat(e.target.value))}
+            className="w-full h-1.5 bg-gray-200 rounded-full appearance-none cursor-pointer accent-black 
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 
+                [&::-webkit-slider-thumb]:bg-black [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer
+                [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110"
+        />
+    </div>
 );
 
 const InputGroup = ({ label, children, className = "" }: { label: string, children?: React.ReactNode, className?: string }) => (
@@ -336,14 +375,197 @@ export const ReceiptForm: React.FC<Props> = ({
                 </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-xl">
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Scanned Effect</span>
-                <button 
-                    onClick={() => onChange({...data, scannedLook: !data.scannedLook})}
-                    className={`h-8 px-4 rounded-md text-[10px] font-bold transition-all border ${data.scannedLook ? 'bg-black text-white border-black' : 'bg-white text-gray-400 border-gray-200'}`}
-                >
-                    {data.scannedLook ? 'ENABLED' : 'DISABLED'}
-                </button>
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                        <SlidersHorizontal size={14} className="text-gray-400" />
+                        <span className="text-xs font-bold text-gray-600 uppercase tracking-widest">Scanner Effects</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => {
+                                const randomized = randomizeScannerEffects();
+                                onChange({
+                                    ...data, 
+                                    scannerEffects: { 
+                                        ...data.scannerEffects, 
+                                        ...randomized,
+                                        randomize: false
+                                    }
+                                });
+                            }}
+                            className="h-7 px-2.5 rounded-md text-[10px] font-bold transition-all border border-gray-200 text-gray-500 hover:border-black hover:text-black flex items-center gap-1"
+                            title="Randomize settings"
+                        >
+                            <Shuffle size={12} />
+                        </button>
+                        <button 
+                            onClick={() => onChange({
+                                ...data, 
+                                scannedLook: !data.scannedLook,
+                                scannerEffects: { ...data.scannerEffects, enabled: !data.scannerEffects.enabled }
+                            })}
+                            className={`h-7 px-3 rounded-md text-[10px] font-bold transition-all border ${data.scannerEffects.enabled ? 'bg-black text-white border-black' : 'bg-white text-gray-400 border-gray-200'}`}
+                        >
+                            {data.scannerEffects.enabled ? 'ON' : 'OFF'}
+                        </button>
+                    </div>
+                </div>
+                
+                {data.scannerEffects.enabled && (
+                    <div className="p-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Auto-Randomize on Export</span>
+                            <button 
+                                onClick={() => onChange({
+                                    ...data, 
+                                    scannerEffects: { ...data.scannerEffects, randomize: !data.scannerEffects.randomize }
+                                })}
+                                className={`h-7 px-3 rounded-md text-[10px] font-bold transition-all border ${data.scannerEffects.randomize ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-400 border-gray-200'}`}
+                            >
+                                {data.scannerEffects.randomize ? 'YES' : 'NO'}
+                            </button>
+                        </div>
+
+                        <div className="h-px bg-gray-100" />
+
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Image size={12} className="text-gray-400" />
+                                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Background Surface</span>
+                            </div>
+                            <div className="grid grid-cols-5 gap-1.5">
+                                {([
+                                    { id: 'none', label: 'None', color: 'bg-white border-gray-300' },
+                                    { id: 'dark-floor', label: 'Dark', color: 'bg-gradient-to-br from-gray-800 to-gray-900' },
+                                    { id: 'wood', label: 'Wood', color: 'bg-gradient-to-br from-amber-800 to-amber-900' },
+                                    { id: 'marble', label: 'Marble', color: 'bg-gradient-to-br from-gray-200 to-gray-300' },
+                                    { id: 'concrete', label: 'Concrete', color: 'bg-gradient-to-br from-gray-500 to-gray-600' },
+                                ] as { id: BackgroundStyle; label: string; color: string }[]).map(bg => (
+                                    <button
+                                        key={bg.id}
+                                        onClick={() => onChange({
+                                            ...data,
+                                            scannerEffects: { ...data.scannerEffects, background: bg.id }
+                                        })}
+                                        className={`flex flex-col items-center gap-1 p-2 rounded-lg border-2 transition-all ${
+                                            data.scannerEffects.background === bg.id 
+                                                ? 'border-black' 
+                                                : 'border-transparent hover:border-gray-200'
+                                        }`}
+                                    >
+                                        <div className={`w-8 h-8 rounded-md ${bg.color} ${bg.id === 'none' ? 'border border-gray-200' : ''}`} />
+                                        <span className="text-[9px] font-bold text-gray-500 uppercase">{bg.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="h-px bg-gray-100" />
+
+                        <ScannerSlider 
+                            label="Rotation" 
+                            value={data.scannerEffects.rotation} 
+                            min={-5} max={5} step={0.1}
+                            unit="°"
+                            onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, rotation: v}})}
+                        />
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                            <ScannerSlider 
+                                label="Tilt X" 
+                                value={data.scannerEffects.perspectiveX} 
+                                min={-8} max={8} step={0.5}
+                                unit="°"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, perspectiveX: v}})}
+                            />
+                            <ScannerSlider 
+                                label="Tilt Y" 
+                                value={data.scannerEffects.perspectiveY} 
+                                min={-6} max={6} step={0.5}
+                                unit="°"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, perspectiveY: v}})}
+                            />
+                        </div>
+
+                        <div className="h-px bg-gray-100" />
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <ScannerSlider 
+                                label="Noise" 
+                                value={data.scannerEffects.noiseIntensity} 
+                                min={0} max={50} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, noiseIntensity: v}})}
+                            />
+                            <ScannerSlider 
+                                label="Vignette" 
+                                value={data.scannerEffects.vignetteIntensity} 
+                                min={0} max={80} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, vignetteIntensity: v}})}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <ScannerSlider 
+                                label="Warmth" 
+                                value={data.scannerEffects.warmth} 
+                                min={-10} max={25} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, warmth: v}})}
+                            />
+                            <ScannerSlider 
+                                label="Blur" 
+                                value={data.scannerEffects.blur} 
+                                min={0} max={1.5} step={0.05}
+                                unit="px"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, blur: v}})}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <ScannerSlider 
+                                label="Brightness" 
+                                value={data.scannerEffects.brightness} 
+                                min={80} max={110} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, brightness: v}})}
+                            />
+                            <ScannerSlider 
+                                label="Contrast" 
+                                value={data.scannerEffects.contrast} 
+                                min={80} max={140} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, contrast: v}})}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <ScannerSlider 
+                                label="Shadows" 
+                                value={data.scannerEffects.shadowIntensity} 
+                                min={0} max={60} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, shadowIntensity: v}})}
+                            />
+                            <ScannerSlider 
+                                label="Paper Texture" 
+                                value={data.scannerEffects.paperTexture} 
+                                min={0} max={40} step={1}
+                                unit="%"
+                                onChange={(v) => onChange({...data, scannerEffects: {...data.scannerEffects, paperTexture: v}})}
+                            />
+                        </div>
+
+                        <button 
+                            onClick={() => onChange({...data, scannerEffects: { ...DEFAULT_SCANNER_EFFECTS }})}
+                            className="w-full h-9 text-[10px] font-bold text-gray-500 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-700 transition-all"
+                        >
+                            RESET TO DEFAULTS
+                        </button>
+                    </div>
+                )}
             </div>
 
             <Section title="Seller Info" isOpen={openSections['seller']} onToggle={() => toggleSection('seller')} isSummary={data.sellerName}>

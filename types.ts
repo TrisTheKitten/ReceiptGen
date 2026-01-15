@@ -1,10 +1,64 @@
-
 export enum BillType {
   TAX_INVOICE = 'Tax Invoice (ใบกำกับภาษี)',
   RECEIPT = 'Receipt (ใบเสร็จรับเงิน)',
   FULL_TAX_INVOICE = 'Tax Invoice / Receipt (ใบกำกับภาษี/ใบเสร็จรับเงิน)',
   CASH_RECEIPT = 'Cash Receipt (บิลเงินสด)'
 }
+
+export type BackgroundStyle = 'none' | 'dark-floor' | 'wood' | 'marble' | 'concrete';
+
+export interface ScannerEffectOptions {
+  enabled: boolean;
+  rotation: number;
+  perspectiveX: number;
+  perspectiveY: number;
+  noiseIntensity: number;
+  vignetteIntensity: number;
+  warmth: number;
+  brightness: number;
+  contrast: number;
+  blur: number;
+  shadowIntensity: number;
+  paperTexture: number;
+  randomize: boolean;
+  background: BackgroundStyle;
+}
+
+export const DEFAULT_SCANNER_EFFECTS: ScannerEffectOptions = {
+  enabled: true,
+  rotation: 0,
+  perspectiveX: 0,
+  perspectiveY: 0,
+  noiseIntensity: 15,
+  vignetteIntensity: 40,
+  warmth: 5,
+  brightness: 96,
+  contrast: 110,
+  blur: 0.3,
+  shadowIntensity: 20,
+  paperTexture: 12,
+  randomize: true,
+  background: 'dark-floor'
+};
+
+export const randomizeScannerEffects = (): Partial<ScannerEffectOptions> => {
+  const random = (min: number, max: number) => Math.random() * (max - min) + min;
+  const randomSign = () => Math.random() > 0.5 ? 1 : -1;
+  
+  return {
+    rotation: random(0.3, 2.5) * randomSign(),
+    perspectiveX: random(0, 3) * randomSign(),
+    perspectiveY: random(0, 2) * randomSign(),
+    noiseIntensity: random(8, 25),
+    vignetteIntensity: random(25, 55),
+    warmth: random(-5, 15),
+    brightness: random(92, 100),
+    contrast: random(105, 125),
+    blur: random(0.1, 0.5),
+    shadowIntensity: random(10, 35),
+    paperTexture: random(8, 20)
+  };
+};
 
 export interface LineItem {
   id: string;
@@ -19,6 +73,7 @@ export interface ReceiptData {
   templateStyle: 'thermal' | 'lazada'; 
   language: 'th';
   scannedLook: boolean;
+  scannerEffects: ScannerEffectOptions;
   
   // Header / Seller
   sellerName: string; 
@@ -77,6 +132,7 @@ export const DEFAULT_RECEIPT: ReceiptData = {
   templateStyle: 'thermal',
   language: 'th',
   scannedLook: true,
+  scannerEffects: { ...DEFAULT_SCANNER_EFFECTS },
   sellerName: 'CP ALL, 7-Eleven',
   sellerAddress: 'นวมินทร์ ซ.3(เลขจบ 2066)',
   sellerTaxId: '0107542000011',

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ReceiptForm } from './components/ReceiptForm';
 import { CanvasWorkspace } from './components/CanvasWorkspace';
-import { ReceiptData, DEFAULT_RECEIPT } from './types';
+import { ReceiptData, DEFAULT_RECEIPT, DEFAULT_SCANNER_EFFECTS } from './types';
 import { AlertTriangle, CheckCircle2, ScanText, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 export default function App() {
@@ -96,6 +96,7 @@ export default function App() {
                 ...DEFAULT_RECEIPT,
                 ...item,
                 invoiceNumber: item.invoiceNumber || `${Math.floor(Math.random() * 9000000) + 1000000}`,
+                scannerEffects: { ...data.scannerEffects }
             } as ReceiptData;
         });
 
@@ -129,20 +130,32 @@ export default function App() {
     setCollection(prev => prev.filter((_, i) => i !== index));
   };
 
-  // --- Capture Helper ---
+  const [instanceSeed, setInstanceSeed] = useState(Date.now());
+  
+  const refreshSeed = () => setInstanceSeed(Date.now());
+
   const captureReceipt = async (): Promise<HTMLCanvasElement | null> => {
     if (!previewRef.current) return null;
     
     try {
         const { default: html2canvas } = await import('html2canvas');
         const originalElement = previewRef.current;
+        
+        const hasBgSurface = data.scannerEffects.enabled && data.scannerEffects.background !== 'none';
+        
         const container = document.createElement('div');
         container.style.position = 'fixed';
         container.style.top = '-10000px'; 
         container.style.left = '-10000px';
         container.style.zIndex = '-1000';
-        container.style.width = `${originalElement.offsetWidth}px`;
-        container.style.height = `${originalElement.offsetHeight}px`; 
+        
+        const paddingForRotation = hasBgSurface ? 20 : 60;
+        container.style.width = `${originalElement.offsetWidth + paddingForRotation * 2}px`;
+        container.style.height = `${originalElement.offsetHeight + paddingForRotation * 2}px`;
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.justifyContent = 'center';
+        container.style.backgroundColor = hasBgSurface ? 'transparent' : '#f8fafc';
         
         document.body.appendChild(container);
         const clone = originalElement.cloneNode(true) as HTMLElement;
@@ -154,12 +167,12 @@ export default function App() {
         const canvas = await html2canvas(clone, {
             scale: 2.5,
             useCORS: true,
-            backgroundColor: '#ffffff',
+            backgroundColor: hasBgSurface ? null : '#f8fafc',
             logging: false,
-            width: originalElement.offsetWidth,
-            height: originalElement.offsetHeight,
-            windowWidth: originalElement.offsetWidth,
-            windowHeight: originalElement.offsetHeight,
+            width: originalElement.offsetWidth + paddingForRotation * 2,
+            height: originalElement.offsetHeight + paddingForRotation * 2,
+            windowWidth: originalElement.offsetWidth + paddingForRotation * 2,
+            windowHeight: originalElement.offsetHeight + paddingForRotation * 2,
             x: 0,
             y: 0
         });
@@ -172,6 +185,11 @@ export default function App() {
   };
 
   const handleDownloadImage = async () => {
+    if (data.scannerEffects.randomize) {
+        setInstanceSeed(Date.now());
+        await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    
     const canvas = await captureReceipt();
     if (!canvas) {
         showNotification("Failed to generate image", 'error');
@@ -225,8 +243,9 @@ export default function App() {
         const zip = new JSZip();
         const folder = zip.folder("receipts");
         for (let i = 0; i < collection.length; i++) {
+            setInstanceSeed(Date.now() + i * 1000);
             setData(collection[i]);
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, 250));
             const canvas = await captureReceipt();
             if (canvas && folder) {
                 const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -246,6 +265,7 @@ export default function App() {
         showNotification("Failed to create ZIP file", 'error');
     } finally {
         setData(originalData);
+        setInstanceSeed(Date.now());
         setProcessingZip(false);
     }
   };
@@ -345,7 +365,7 @@ export default function App() {
         {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
       </button>
 
-      <CanvasWorkspace data={data} previewRef={previewRef} onToggleMobileMenu={toggleMobileMenu} />
+      <CanvasWorkspace data={data} previewRef={previewRef} onToggleMobileMenu={toggleMobileMenu} instanceSeed={instanceSeed} />
     </div>
   );
 }

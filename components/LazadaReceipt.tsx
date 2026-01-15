@@ -24,7 +24,6 @@ const LazadaLogo = () => (
 
 export const LazadaReceipt = ({ data }: { data: ReceiptData }) => {
     const {
-        scannedLook,
         sellerName,
         sellerAddress,
         sellerTaxId,
@@ -50,7 +49,7 @@ export const LazadaReceipt = ({ data }: { data: ReceiptData }) => {
     };
 
     return (
-        <div className={`bg-white text-black relative shrink-0 overflow-hidden ${scannedLook ? 'scanned-effect' : ''} w-[794px] min-h-[1123px] p-12 font-thai text-black select-none flex flex-col`} style={{ fontFamily: 'Sarabun, sans-serif' }}>
+        <div className="bg-white text-black relative shrink-0 overflow-hidden w-[794px] min-h-[1123px] p-12 font-thai text-black select-none flex flex-col" style={{ fontFamily: 'Sarabun, sans-serif' }}>
             
             <div className="flex justify-between items-start mb-8">
                 <LazadaLogo />

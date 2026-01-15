@@ -7,13 +7,14 @@ interface Props {
   data: ReceiptData;
   previewRef: React.RefObject<HTMLDivElement | null>;
   onToggleMobileMenu: () => void;
+  instanceSeed?: number;
 }
 
 const DEFAULT_ZOOM = 0.85;
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 3;
 
-export const CanvasWorkspace: React.FC<Props> = ({ data, previewRef, onToggleMobileMenu }) => {
+export const CanvasWorkspace: React.FC<Props> = ({ data, previewRef, onToggleMobileMenu, instanceSeed }) => {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -140,7 +141,7 @@ export const CanvasWorkspace: React.FC<Props> = ({ data, previewRef, onToggleMob
               }}
            >
               <div className="pointer-events-auto bg-white">
-                  <ReceiptPreview data={data} previewRef={previewRef} />
+                  <ReceiptPreview data={data} previewRef={previewRef} instanceSeed={instanceSeed} />
               </div>
            </div>
        </div>
