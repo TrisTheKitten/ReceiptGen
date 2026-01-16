@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { ReceiptData, ScannerEffectOptions, DEFAULT_SCANNER_EFFECTS, randomizeScannerEffects, BackgroundStyle } from '../types';
-import { Trash2, RefreshCw, ChevronDown, ChevronRight, Edit, Archive, Download, FileText, Plus, Eye, EyeOff, Key, Shuffle, SlidersHorizontal, Image } from 'lucide-react';
+import { ReceiptData, DEFAULT_SCANNER_EFFECTS, randomizeScannerEffects, BackgroundStyle } from '../types';
+import { calculateItemTotal, calculateTotals } from '../utils/receiptMath';
+import { Trash2, RefreshCw, ChevronDown, ChevronRight, Edit, Download, FileText, Eye, EyeOff, Key, Shuffle, SlidersHorizontal, Image } from 'lucide-react';
 
 interface Props {
   data: ReceiptData;
@@ -19,8 +20,7 @@ interface Props {
   onRemoveFromCollection: (index: number) => void;
   processingZip: boolean;
   apiKey: string;
-  onApiKeyChange: (key: string, save: boolean) => void;
-  shouldSaveKey: boolean;
+  onApiKeyChange: (key: string) => void;
 }
 
 const NumberInput = ({ 
@@ -190,8 +190,7 @@ export const ReceiptForm: React.FC<Props> = ({
   onRemoveFromCollection,
   processingZip,
   apiKey,
-  onApiKeyChange,
-  shouldSaveKey
+  onApiKeyChange
 }) => {
   const [activeTab, setActiveTab] = useState<'editor' | 'bulk'>('editor');
   const [showApiKey, setShowApiKey] = useState(false);
@@ -238,28 +237,32 @@ export const ReceiptForm: React.FC<Props> = ({
 
   const handleItemChange = (index: number, field: string, value: string | number) => {
     const newItems = [...data.items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    newItems[index].total = newItems[index].quantity * newItems[index].unitPrice;
-    
-    const subtotal = newItems.reduce((acc, item) => acc + item.total, 0);
-    const savings = data.savings || 0;
-    const grandTotal = Math.max(0, subtotal - savings);
-    const vatAmount = (grandTotal * 7) / 107;
+    const updatedItem = { ...newItems[index] };
+    if (field === 'description') {
+      updatedItem.description = String(value);
+    } else if (field === 'quantity') {
+      const numericValue = typeof value === 'number' ? value : parseFloat(value);
+      updatedItem.quantity = Number.isFinite(numericValue) ? numericValue : 0;
+    } else if (field === 'unitPrice') {
+      const numericValue = typeof value === 'number' ? value : parseFloat(value);
+      updatedItem.unitPrice = Number.isFinite(numericValue) ? numericValue : 0;
+    }
+    updatedItem.total = calculateItemTotal(updatedItem.quantity, updatedItem.unitPrice);
+    newItems[index] = updatedItem;
 
+    const { subtotal, grandTotal, vatAmount } = calculateTotals(newItems, data.savings || 0, data.vatRate);
     onChange({ ...data, items: newItems, subtotal, vatAmount, grandTotal });
   };
 
   const addItem = () => {
     const newItems = [...data.items, { id: Date.now().toString(), description: 'Item Name', quantity: 1, unitPrice: 10, total: 10 }];
-    onChange({ ...data, items: newItems });
+    const { subtotal, grandTotal, vatAmount } = calculateTotals(newItems, data.savings || 0, data.vatRate);
+    onChange({ ...data, items: newItems, subtotal, vatAmount, grandTotal });
   };
 
   const removeItem = (index: number) => {
     const newItems = data.items.filter((_, i) => i !== index);
-    const subtotal = newItems.reduce((acc, item) => acc + item.total, 0);
-    const savings = data.savings || 0;
-    const grandTotal = Math.max(0, subtotal - savings);
-    const vatAmount = (grandTotal * 7) / 107;
+    const { subtotal, grandTotal, vatAmount } = calculateTotals(newItems, data.savings || 0, data.vatRate);
     onChange({ ...data, items: newItems, subtotal, vatAmount, grandTotal });
   };
 
@@ -326,7 +329,7 @@ export const ReceiptForm: React.FC<Props> = ({
                             <input 
                                 type={showApiKey ? "text" : "password"} 
                                 value={apiKey || ''}
-                                onChange={(e) => onApiKeyChange?.(e.target.value, shouldSaveKey)}
+                                onChange={(e) => onApiKeyChange?.(e.target.value)}
                                 placeholder="Enter your Gemini API Key"
                                 className="w-full h-11 pl-10 pr-10 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-black focus:border-black outline-none transition-all"
                             />
@@ -336,22 +339,15 @@ export const ReceiptForm: React.FC<Props> = ({
                             <button 
                                 onClick={() => setShowApiKey(!showApiKey)}
                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black transition-colors"
+                                type="button"
+                                aria-label={showApiKey ? "Hide API key" : "Show API key"}
                             >
                                 {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
-                            <input 
-                                type="checkbox" 
-                                id="saveKey" 
-                                checked={shouldSaveKey}
-                                onChange={(e) => onApiKeyChange?.(apiKey, e.target.checked)}
-                                className="w-3.5 h-3.5 rounded border-gray-300 text-black focus:ring-black accent-black"
-                            />
-                            <label htmlFor="saveKey" className="text-[11px] text-gray-500 font-bold select-none cursor-pointer uppercase tracking-wide">
-                                Save locally (Browser Storage)
-                            </label>
-                        </div>
+                        <p className="mt-2 text-[11px] text-gray-500 font-bold uppercase tracking-wide">
+                            Your key stays in memory only for this session.
+                        </p>
                     </div>
                     
                     <div className="h-px bg-gray-100 my-1"></div>
@@ -396,6 +392,8 @@ export const ReceiptForm: React.FC<Props> = ({
                             }}
                             className="h-7 px-2.5 rounded-md text-[10px] font-bold transition-all border border-gray-200 text-gray-500 hover:border-black hover:text-black flex items-center gap-1"
                             title="Randomize settings"
+                            type="button"
+                            aria-label="Randomize scanner settings"
                         >
                             <Shuffle size={12} />
                         </button>
@@ -406,6 +404,7 @@ export const ReceiptForm: React.FC<Props> = ({
                                 scannerEffects: { ...data.scannerEffects, enabled: !data.scannerEffects.enabled }
                             })}
                             className={`h-7 px-3 rounded-md text-[10px] font-bold transition-all border ${data.scannerEffects.enabled ? 'bg-black text-white border-black' : 'bg-white text-gray-400 border-gray-200'}`}
+                            aria-pressed={data.scannerEffects.enabled}
                         >
                             {data.scannerEffects.enabled ? 'ON' : 'OFF'}
                         </button>
@@ -422,6 +421,7 @@ export const ReceiptForm: React.FC<Props> = ({
                                     scannerEffects: { ...data.scannerEffects, randomize: !data.scannerEffects.randomize }
                                 })}
                                 className={`h-7 px-3 rounded-md text-[10px] font-bold transition-all border ${data.scannerEffects.randomize ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-gray-400 border-gray-200'}`}
+                                aria-pressed={data.scannerEffects.randomize}
                             >
                                 {data.scannerEffects.randomize ? 'YES' : 'NO'}
                             </button>
@@ -638,7 +638,11 @@ export const ReceiptForm: React.FC<Props> = ({
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={() => removeItem(index)} className="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                            <button
+                              onClick={() => removeItem(index)}
+                              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                              aria-label={`Remove item ${index + 1}`}
+                            >
                                 <Trash2 size={16} />
                             </button>
                         </div>
@@ -656,10 +660,8 @@ export const ReceiptForm: React.FC<Props> = ({
                             value={data.savings || 0}
                             onChange={(v) => {
                                 const savings = v;
-                                const subtotal = data.items.reduce((acc, item) => acc + item.total, 0);
-                                const grandTotal = Math.max(0, subtotal - savings);
-                                const vatAmount = (grandTotal * 7) / 107;
-                                onChange({ ...data, savings, vatAmount, grandTotal });
+                                const { subtotal, grandTotal, vatAmount } = calculateTotals(data.items, savings, data.vatRate);
+                                onChange({ ...data, savings, subtotal, vatAmount, grandTotal });
                             }}
                             prefix="฿"
                             min={0}
@@ -749,10 +751,18 @@ export const ReceiptForm: React.FC<Props> = ({
                             </div>
                         </div>
                         <div className="flex gap-1">
-                            <button onClick={() => onLoadFromCollection(idx)} className="p-2 text-gray-400 hover:text-black transition-colors">
+                            <button
+                              onClick={() => onLoadFromCollection(idx)}
+                              className="p-2 text-gray-400 hover:text-black transition-colors"
+                              aria-label={`Load receipt ${idx + 1}`}
+                            >
                                 <Edit size={14} />
                             </button>
-                            <button onClick={() => onRemoveFromCollection(idx)} className="p-2 text-gray-400 hover:text-black transition-colors">
+                            <button
+                              onClick={() => onRemoveFromCollection(idx)}
+                              className="p-2 text-gray-400 hover:text-black transition-colors"
+                              aria-label={`Remove receipt ${idx + 1}`}
+                            >
                                 <Trash2 size={14} />
                             </button>
                         </div>
@@ -777,6 +787,7 @@ export const ReceiptForm: React.FC<Props> = ({
                         onClick={onDownloadPDF} 
                         className="w-12 h-11 border border-gray-200 text-gray-500 rounded-lg flex items-center justify-center hover:bg-gray-50"
                         title="PDF"
+                        aria-label="Download PDF"
                     >
                          <FileText size={18} />
                     </button>

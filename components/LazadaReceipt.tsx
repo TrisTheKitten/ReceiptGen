@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ReceiptData } from '../types';
+import { sanitizeText } from '../utils/sanitize';
 
 const LazadaLogo = () => (
     <div className="flex items-center gap-2">
@@ -38,9 +39,24 @@ export const LazadaReceipt = ({ data }: { data: ReceiptData }) => {
         grandTotal,
     } = data;
 
+    const safeSellerName = sanitizeText(sellerName);
+    const safeSellerAddress = sanitizeText(sellerAddress);
+    const safeSellerTaxId = sanitizeText(sellerTaxId);
+    const safeSellerPhone = sanitizeText(sellerPhone);
+    const safeBranchCode = sanitizeText(branchCode);
+    const safeBuyerName = sanitizeText(buyerName);
+    const safeBuyerAddress = sanitizeText(buyerAddress || '');
+    const safeInvoiceNumber = sanitizeText(invoiceNumber);
+    const safeRefOrderNumber = sanitizeText(refOrderNumber || '');
+    const safeItems = items.map((item) => ({
+        ...item,
+        description: sanitizeText(item.description),
+    }));
+
     const formatDate = (dateStr: string) => {
         if (!dateStr) return '';
         const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return '';
         return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
     };
 
@@ -60,27 +76,27 @@ export const LazadaReceipt = ({ data }: { data: ReceiptData }) => {
             </div>
 
             <div className="text-center text-[12px] leading-relaxed mb-6">
-                <div className="font-medium text-[13px] mb-0.5">{sellerName}</div>
-                <div className="w-[70%] mx-auto">{sellerAddress}</div>
-                <div className="mt-0.5">Tel : {sellerPhone}</div>
-                <div className="mt-0.5">TAX ID : {sellerTaxId} Branch: {branchCode}</div>
+                <div className="font-medium text-[13px] mb-0.5">{safeSellerName}</div>
+                <div className="w-[70%] mx-auto">{safeSellerAddress}</div>
+                <div className="mt-0.5">Tel : {safeSellerPhone}</div>
+                <div className="mt-0.5">TAX ID : {safeSellerTaxId} Branch: {safeBranchCode}</div>
             </div>
 
             <div className="border border-black flex mb-0.5">
                 <div className="flex-1 border-r border-black p-4">
                      <div className="flex text-[12px] mb-1.5">
                         <div className="w-36 font-bold shrink-0">ชื่อลูกค้า / Customer</div>
-                        <div>{buyerName}</div>
+                        <div>{safeBuyerName}</div>
                      </div>
                      <div className="flex text-[12px]">
                         <div className="w-36 font-bold shrink-0">ที่อยู่ / Address</div>
-                        <div className="pr-2 leading-relaxed">{buyerAddress}</div>
+                        <div className="pr-2 leading-relaxed">{safeBuyerAddress}</div>
                      </div>
                 </div>
                 <div className="w-[42%] p-4 pl-6">
                      <div className="flex text-[12px] mb-1.5">
                         <div className="w-32 font-bold shrink-0">เลขที่ / No.</div>
-                        <div>{invoiceNumber}</div>
+                        <div>{safeInvoiceNumber}</div>
                      </div>
                      <div className="flex text-[12px] mb-1.5">
                         <div className="w-32 font-bold shrink-0">วันที่ / Date</div>
@@ -88,7 +104,7 @@ export const LazadaReceipt = ({ data }: { data: ReceiptData }) => {
                      </div>
                      <div className="flex text-[12px]">
                         <div className="w-32 font-bold shrink-0">Ref. Order No.</div>
-                        <div>{refOrderNumber}</div>
+                        <div>{safeRefOrderNumber}</div>
                      </div>
                 </div>
             </div>
@@ -117,7 +133,7 @@ export const LazadaReceipt = ({ data }: { data: ReceiptData }) => {
                       </div>
 
                       <div className="relative z-10 pt-1">
-                        {items.map((item, idx) => (
+                        {safeItems.map((item, idx) => (
                             <div key={idx} className="flex">
                                 <div className="w-24 text-center py-1.5">{idx + 1}</div>
                                 <div className="flex-1 py-1.5 pl-4">{item.description}</div>

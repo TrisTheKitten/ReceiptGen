@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ReceiptData } from '../types';
+import { sanitizeText } from '../utils/sanitize';
 
 const FakeBarcode = ({ barWidth = 2, gapWidth = 2, height = 32 }: { barWidth?: number, gapWidth?: number, height?: number }) => {
     const totalWidth = 160;
@@ -45,15 +46,25 @@ export const ThermalReceipt = ({ data }: { data: ReceiptData }) => {
         couponsRemaining = 0
     } = data;
 
+    const safeSellerAddress = sanitizeText(sellerAddress);
+    const safeBuyerName = sanitizeText(buyerName);
+    const safeMemberId = sanitizeText(memberId);
+    const safeItems = items.map((item) => ({
+        ...item,
+        description: sanitizeText(item.description),
+    }));
+
     const formatDateShort = (dateStr: string) => {
         if (!dateStr) return '';
         const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) return '';
+        const timeSource = dateStr.length > 10 ? d : new Date();
         const day = d.getDate().toString().padStart(2, '0');
         const month = (d.getMonth() + 1).toString().padStart(2, '0');
         const year = (d.getFullYear() + 543).toString().slice(-2); 
-        const hours = d.getHours().toString().padStart(2, '0');
-        const mins = d.getMinutes().toString().padStart(2, '0');
-        return `${day}/${month}/${year} ${hours === '00' ? '17:26' : hours + ':' + mins}`;
+        const hours = timeSource.getHours().toString().padStart(2, '0');
+        const mins = timeSource.getMinutes().toString().padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${mins}`;
     };
 
     const formatCurrency = (amount: number) => {
@@ -69,14 +80,14 @@ export const ThermalReceipt = ({ data }: { data: ReceiptData }) => {
     return (
         <div className="bg-white text-black relative overflow-hidden shrink-0 w-[380px] min-h-[600px] p-4 pb-12 font-thai text-black select-none" style={{ fontFamily: 'Sarabun, sans-serif' }}>
             <div className="text-center text-[13px] leading-tight tracking-tight">
-                <div className="font-bold mb-0.5">CP ALL, 7-Eleven {sellerAddress.split(' ')[0]} ({branchCode})</div>
+                <div className="font-bold mb-0.5">CP ALL, 7-Eleven {safeSellerAddress.split(' ')[0]} ({branchCode})</div>
                 <div className="mb-0.5">TAX#{sellerTaxId} (VAT Included)</div>
                 <div className="mb-2">Vat Code {branchCode} POS#{posId}</div>
                 <div className="font-bold text-[14px]">ใบเสร็จรับเงิน/ใบกำกับภาษีอย่างย่อ</div>
             </div>
 
             <div className="mt-4 text-[13px] leading-snug w-full font-medium">
-                {items.map((item, idx) => {
+                {safeItems.map((item, idx) => {
                     const flag = (idx % 3 === 0) ? "P" : (idx % 2 === 0 ? "E" : "N");
                     return (
                         <div key={item.id} className="flex relative items-start mb-0.5">
@@ -120,11 +131,11 @@ export const ThermalReceipt = ({ data }: { data: ReceiptData }) => {
 
             <div className="mt-3 text-[13px] text-center leading-tight">
                 <div className="flex justify-between px-0 mb-1 tracking-tight uppercase">
-                    <span>R#{invoiceNumber} :{memberId.replace(/-/g, '')}</span>
+                    <span>R#{invoiceNumber} :{safeMemberId.replace(/-/g, '')}</span>
                     <span>{formatDateShort(date)}</span>
                 </div>
                 <div className="mb-2 tracking-tight">
-                    * คุณลูกค้าสมาชิก All Member {memberId} *
+                    * คุณลูกค้าสมาชิก All Member {safeMemberId} *
                 </div>
             </div>
 
@@ -137,7 +148,7 @@ export const ThermalReceipt = ({ data }: { data: ReceiptData }) => {
             <DashedLine />
 
             <div className="text-[13px] leading-snug">
-                <p className="font-bold mb-1">ข้อมูลสมาชิก คุณ{buyerName}</p>
+                <p className="font-bold mb-1">ข้อมูลสมาชิก คุณ{safeBuyerName}</p>
                 
                 <div className="flex justify-end gap-3 text-[11px] mb-0.5 pr-1">
                     <span className="w-10 text-right">ได้รับ</span>

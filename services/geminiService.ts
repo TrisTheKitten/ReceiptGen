@@ -1,5 +1,6 @@
 
-import { ReceiptData } from "../types";
+import { ReceiptData, DEFAULT_RECEIPT } from "../types";
+import { calculateItemTotal, calculateTotals } from "../utils/receiptMath";
 
 type GeminiModule = typeof import("@google/genai");
 type Schema = import("@google/genai").Schema;
@@ -60,13 +61,79 @@ const buildSchemas = (Type: GeminiModule["Type"]) => {
 
 const HYDRATE_PREFIXES = ["H ", "H FH", "A ", ""];
 
-const hydrate711Receipt = (data: any, index: number = 0): Partial<ReceiptData> => {
-  let subtotal = 0;
-  const items = (data.items || []).map((item: any, idx: number) => {
-    const quantity = item.quantity || 1;
-    const unitPrice = item.unitPrice || 0;
-    const total = quantity * unitPrice;
-    subtotal += total;
+type GeneratedItemInput = {
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+};
+
+type GeneratedReceiptInput = {
+  sellerAddress?: string;
+  items?: GeneratedItemInput[];
+  savings?: number;
+  buyerName?: string;
+  buyerAddress?: string;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const toNumber = (value: unknown, fallback = 0) => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+};
+
+const toOptionalText = (value: unknown) => {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const normalizeItems = (items: unknown): GeneratedItemInput[] => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (!isRecord(item)) return null;
+      const quantity = Math.max(1, toNumber(item.quantity, 1));
+      const unitPrice = Math.max(0, toNumber(item.unitPrice, 0));
+      return {
+        description: toOptionalText(item.description),
+        quantity,
+        unitPrice,
+      };
+    })
+    .filter((item): item is GeneratedItemInput => Boolean(item));
+};
+
+const normalizeReceiptInput = (value: unknown): GeneratedReceiptInput | null => {
+  if (!isRecord(value)) return null;
+  return {
+    sellerAddress: toOptionalText(value.sellerAddress),
+    items: normalizeItems(value.items),
+    savings: Math.max(0, toNumber(value.savings, 0)),
+    buyerName: toOptionalText(value.buyerName),
+    buyerAddress: toOptionalText(value.buyerAddress),
+  };
+};
+
+const safeJsonParse = (text: string) => {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Failed to parse Gemini response JSON.", error);
+    return null;
+  }
+};
+
+const hydrate711Receipt = (data: GeneratedReceiptInput, index: number = 0): Partial<ReceiptData> => {
+  const items = (data.items || []).map((item, idx: number) => {
+    const quantity = item.quantity ?? 1;
+    const unitPrice = item.unitPrice ?? 0;
+    const total = calculateItemTotal(quantity, unitPrice);
     
     let desc = item.description || "Item";
     // Add realistic 7-11 prefixes if not present and not already prefixed
@@ -85,9 +152,8 @@ const hydrate711Receipt = (data: any, index: number = 0): Partial<ReceiptData> =
   });
 
   const savings = data.savings || 0;
-  const grandTotalBeforeVat = subtotal - savings;
-  const grandTotal = grandTotalBeforeVat > 0 ? grandTotalBeforeVat : 0;
-  const vatAmount = (grandTotal * 7) / 107; 
+  const vatRate = DEFAULT_RECEIPT.vatRate;
+  const { subtotal, grandTotal, vatAmount } = calculateTotals(items, savings, vatRate);
   const cashAmount = Math.ceil(grandTotal / 100) * 100 + 2; 
   const changeAmount = cashAmount - grandTotal;
 
@@ -130,13 +196,11 @@ const hydrate711Receipt = (data: any, index: number = 0): Partial<ReceiptData> =
   };
 };
 
-const hydrateLazadaReceipt = (data: any, index: number = 0): Partial<ReceiptData> => {
-  let subtotal = 0;
-  const items = (data.items || []).map((item: any, idx: number) => {
-    const quantity = item.quantity || 1;
-    const unitPrice = item.unitPrice || 0;
-    const total = quantity * unitPrice;
-    subtotal += total;
+const hydrateLazadaReceipt = (data: GeneratedReceiptInput, index: number = 0): Partial<ReceiptData> => {
+  const items = (data.items || []).map((item, idx: number) => {
+    const quantity = item.quantity ?? 1;
+    const unitPrice = item.unitPrice ?? 0;
+    const total = calculateItemTotal(quantity, unitPrice);
 
     return {
       id: `gen-laz-${Date.now()}-${index}-${idx}`,
@@ -147,8 +211,8 @@ const hydrateLazadaReceipt = (data: any, index: number = 0): Partial<ReceiptData
     };
   });
 
-  const grandTotal = subtotal;
-  const vatAmount = (grandTotal * 7) / 107; 
+  const vatRate = DEFAULT_RECEIPT.vatRate;
+  const { subtotal, grandTotal, vatAmount } = calculateTotals(items, 0, vatRate);
   
   const d = new Date();
   d.setDate(d.getDate() - Math.floor(Math.random() * 14));
@@ -199,6 +263,7 @@ export const generateReceiptData = async (
     const { GoogleGenAI, Type } = await loadGeminiModule();
     const { receiptSchema } = buildSchemas(Type);
     const ai = new GoogleGenAI({ apiKey });
+    const modelName = import.meta.env.VITE_GEMINI_MODEL || "gemini-3-flash-preview";
     
     let prompt = "";
     if (category === 'lazada') {
@@ -214,7 +279,7 @@ export const generateReceiptData = async (
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: modelName,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -226,10 +291,17 @@ export const generateReceiptData = async (
     const text = response.text;
     if (!text) return null;
     
-    const rawData = JSON.parse(text);
-    return category === 'lazada' ? hydrateLazadaReceipt(rawData) : hydrate711Receipt(rawData);
+    const rawData = safeJsonParse(text);
+    const parsed = normalizeReceiptInput(rawData);
+    if (!parsed) {
+      console.warn("Gemini response did not match expected schema.");
+      return null;
+    }
+
+    return category === 'lazada' ? hydrateLazadaReceipt(parsed) : hydrate711Receipt(parsed);
 
   } catch (error) {
+    console.error("Gemini receipt generation failed.", error);
     return null;
   }
 };
@@ -243,6 +315,7 @@ export const generateReceiptBatch = async (
     const { GoogleGenAI, Type } = await loadGeminiModule();
     const { receiptBatchSchema } = buildSchemas(Type);
     const ai = new GoogleGenAI({ apiKey });
+    const modelName = import.meta.env.VITE_GEMINI_MODEL || "gemini-3-flash-preview";
     
     let prompt = "";
     if (category === 'lazada') {
@@ -256,7 +329,7 @@ export const generateReceiptBatch = async (
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: modelName,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -268,12 +341,26 @@ export const generateReceiptBatch = async (
     const text = response.text;
     if (!text) return [];
     
-    const rawData = JSON.parse(text);
-    if (!Array.isArray(rawData)) return [];
+    const rawData = safeJsonParse(text);
+    if (!Array.isArray(rawData)) {
+      console.warn("Gemini batch response was not an array.");
+      return [];
+    }
 
-    return rawData.map((item, idx) => category === 'lazada' ? hydrateLazadaReceipt(item, idx) : hydrate711Receipt(item, idx));
+    const normalizedItems = rawData
+      .map(normalizeReceiptInput)
+      .filter((item): item is GeneratedReceiptInput => Boolean(item));
+
+    if (normalizedItems.length !== rawData.length) {
+      console.warn("Some Gemini batch items did not match expected schema.");
+    }
+
+    return normalizedItems.map((item, idx) =>
+      category === 'lazada' ? hydrateLazadaReceipt(item, idx) : hydrate711Receipt(item, idx)
+    );
 
   } catch (error) {
+    console.error("Gemini batch generation failed.", error);
     return [];
   }
 };

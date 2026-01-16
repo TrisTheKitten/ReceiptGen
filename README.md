@@ -25,6 +25,8 @@ npm run dev
 3. Click "Generate AI" to auto-fill receipt data, or manually edit fields
 4. Download as PNG/PDF or add to collection for batch export
 
+Note: Your API key is kept in memory only for the current session.
+
 ## Tech Stack
 
 - React 19 + TypeScript
@@ -32,3 +34,7 @@ npm run dev
 - Google Gemini AI (`@google/genai`)
 - html2canvas + jsPDF for exports
 - JSZip for batch downloads
+
+## Configuration
+
+- `VITE_GEMINI_MODEL` (optional): override the default Gemini model name.
