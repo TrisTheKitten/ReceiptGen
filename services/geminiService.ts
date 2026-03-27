@@ -127,7 +127,6 @@ const safeJsonParse = (text: string) => {
   try {
     return JSON.parse(text);
   } catch (error) {
-    console.error("Failed to parse Gemini response JSON.", error);
     return null;
   }
 };
@@ -614,7 +613,6 @@ export const generateReceiptData = async (
     const rawData = safeJsonParse(text);
     const parsed = normalizeReceiptInput(rawData);
     if (!parsed) {
-      console.warn("Gemini response did not match expected schema.");
       return null;
     }
 
@@ -627,7 +625,6 @@ export const generateReceiptData = async (
           : hydrate711Receipt(parsed);
 
   } catch (error) {
-    console.error("Gemini receipt generation failed.", error);
     return null;
   }
 };
@@ -674,17 +671,12 @@ export const generateReceiptBatch = async (
 
     const rawData = safeJsonParse(text);
     if (!Array.isArray(rawData)) {
-      console.warn("Gemini batch response was not an array.");
       return [];
     }
 
     const normalizedItems = rawData
       .map(normalizeReceiptInput)
       .filter((item): item is GeneratedReceiptInput => Boolean(item));
-
-    if (normalizedItems.length !== rawData.length) {
-      console.warn("Some Gemini batch items did not match expected schema.");
-    }
 
     return normalizedItems.map((item, idx) =>
       category === 'lazada'
@@ -697,7 +689,6 @@ export const generateReceiptBatch = async (
     );
 
   } catch (error) {
-    console.error("Gemini batch generation failed.", error);
     return [];
   }
 };

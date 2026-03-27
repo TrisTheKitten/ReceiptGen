@@ -68,7 +68,6 @@ export default function App() {
         showNotification("AI could not generate data.", 'error');
       }
     } catch (err) {
-      console.error('Failed to generate receipt data.', err);
       showNotification("An error occurred during generation.", 'error');
     } finally {
       setIsGenerating(false);
@@ -105,7 +104,6 @@ export default function App() {
       showNotification(`Successfully generated ${newItems.length} receipts!`, 'success');
 
     } catch (e) {
-      console.error('Batch generation failed.', e);
       showNotification("Batch generation failed. Please try again.", 'error');
     } finally {
       setIsGenerating(false);
@@ -182,7 +180,6 @@ export default function App() {
       document.body.removeChild(container);
       return canvas;
     } catch (err) {
-      console.error('Failed to capture receipt.', err);
       return null;
     }
   };
@@ -206,7 +203,6 @@ export default function App() {
       link.click();
       showNotification("Image downloaded", 'success');
     } catch (err) {
-      console.error('Image download failed.', err);
       showNotification("Failed to download image", 'error');
     }
   };
@@ -233,7 +229,6 @@ export default function App() {
       pdf.save(`invoice-${data.invoiceNumber}.pdf`);
       showNotification("PDF downloaded", 'success');
     } catch (err) {
-      console.error('PDF download failed.', err);
       showNotification("Failed to download PDF", 'error');
     }
   };
@@ -267,7 +262,6 @@ export default function App() {
       showNotification("ZIP downloaded successfully!", 'success');
 
     } catch (error) {
-      console.error('ZIP generation failed.', error);
       showNotification("Failed to create ZIP file", 'error');
     } finally {
       setData(originalData);
