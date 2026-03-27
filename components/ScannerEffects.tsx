@@ -18,39 +18,57 @@ const backgroundClassMap: Record<BackgroundStyle, string> = {
 export const ScannerEffects: React.FC<Props> = ({ effects, children, instanceSeed }) => {
   const computedEffects = useMemo(() => {
     if (!effects.enabled) return null;
-    
+
     if (effects.randomize && instanceSeed !== undefined) {
       const seededRandom = (seed: number) => {
         const x = Math.sin(seed) * 10000;
         return x - Math.floor(x);
       };
-      
+
       const random = (min: number, max: number, offset: number = 0) => {
         const r = seededRandom(instanceSeed + offset);
         return r * (max - min) + min;
       };
-      
+
       const randomSign = (offset: number = 0) => seededRandom(instanceSeed + offset) > 0.5 ? 1 : -1;
-      
+
+      if (effects.extremeMode) {
+        return {
+          rotation: random(8, 15, 1) * randomSign(2),
+          perspectiveX: random(10, 15, 3) * randomSign(4),
+          perspectiveY: random(8, 12, 5) * randomSign(6),
+          noiseIntensity: random(60, 85, 7),
+          vignetteIntensity: random(65, 85, 8),
+          warmth: random(-10, 20, 9),
+          brightness: random(70, 85, 10),
+          contrast: random(140, 160, 11),
+          blur: random(0.8, 1.5, 12),
+          zoom: random(0.7, 0.9, 15),
+          shadowIntensity: random(40, 60, 13),
+          paperTexture: random(30, 45, 14)
+        };
+      }
+
       return {
-        rotation: random(0.3, 2.5, 1) * randomSign(2),
-        perspectiveX: random(0, 3, 3) * randomSign(4),
-        perspectiveY: random(0, 2, 5) * randomSign(6),
-        noiseIntensity: random(8, 25, 7),
-        vignetteIntensity: random(25, 55, 8),
+        rotation: random(0.5, 4.0, 1) * randomSign(2),
+        perspectiveX: random(0, 5, 3) * randomSign(4),
+        perspectiveY: random(0, 4, 5) * randomSign(6),
+        noiseIntensity: random(12, 35, 7),
+        vignetteIntensity: random(30, 65, 8),
         warmth: random(-5, 15, 9),
         brightness: random(92, 100, 10),
         contrast: random(105, 125, 11),
-        blur: random(0.1, 0.5, 12),
-        shadowIntensity: random(10, 35, 13),
-        paperTexture: random(8, 20, 14)
+        blur: random(0.2, 0.8, 12),
+        zoom: random(0.95, 1.12, 15),
+        shadowIntensity: random(15, 45, 13),
+        paperTexture: random(10, 25, 14)
       };
     }
-    
+
     if (effects.randomize) {
-      return randomizeScannerEffects();
+      return randomizeScannerEffects(effects.extremeMode);
     }
-    
+
     return effects;
   }, [effects, instanceSeed]);
 
@@ -68,6 +86,7 @@ export const ScannerEffects: React.FC<Props> = ({ effects, children, instanceSee
     '--scan-brightness': computedEffects.brightness / 100,
     '--scan-contrast': computedEffects.contrast / 100,
     '--scan-blur': `${computedEffects.blur}px`,
+    '--scan-zoom': computedEffects.zoom ?? 1,
     '--scan-shadow': computedEffects.shadowIntensity / 100,
     '--scan-texture': computedEffects.paperTexture / 100,
   } as React.CSSProperties;

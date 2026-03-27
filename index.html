@@ -51,6 +51,7 @@
         --scan-brightness: 0.96;
         --scan-contrast: 1.1;
         --scan-blur: 0.3px;
+        --scan-zoom: 1;
         --scan-shadow: 0.2;
         --scan-texture: 0.12;
         perspective: 1200px;
@@ -146,7 +147,8 @@
         transform: 
           rotateZ(var(--scan-rotation))
           rotateY(var(--scan-perspective-x))
-          rotateX(var(--scan-perspective-y));
+          rotateX(var(--scan-perspective-y))
+          scale(var(--scan-zoom));
         transition: transform 0.3s ease-out;
       }
 
